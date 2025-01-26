@@ -8,4 +8,4 @@ const userSchema = new mongoose.Schema({
   ratings: { type: Number, default: 0 }, // Teacher's rating; learners won't need this
 }, { timestamps: true });
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model("Student", userSchema);
