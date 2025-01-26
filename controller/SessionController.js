@@ -1,6 +1,6 @@
 const postSession=require('../model/Session')
 const User=require('../model/Student')
-const postSessionHandler``=async(req,res)=>{
+const postSessionHandler=async(req,res)=>{
     try {
 
         
