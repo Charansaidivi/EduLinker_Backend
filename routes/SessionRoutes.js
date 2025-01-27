@@ -1,5 +1,8 @@
-const express=require('express')
-const router=express.Router()
-const {postSessionHandler}=require('../controller/SessionController')
-router.post('/postSession',postSessionHandler)
-module.exports=router
+const express = require('express');
+const router = express.Router();
+const { createSession } = require('../controller/SessionController');
+const verifyToken = require('../middleware/verifyToken')
+
+router.post('/create',verifyToken,createSession);
+
+module.exports = router;
