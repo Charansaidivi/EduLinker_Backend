@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 
 const sessionSchema = new mongoose.Schema({
-  teacherId: { 
+  studentId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: "User", 
+    ref: "Student", 
     required: true 
   }, // Reference to the teacher
   topicName: { 

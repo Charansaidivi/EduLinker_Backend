@@ -27,9 +27,9 @@ const createSession = async (req, res) => {
         } = req.body;
 
         const media = req.file ? req.file.filename : undefined;
-
         // Fetch the student by ID
-        const student = await Student.findById(req.studentId);
+        const student = await Student.findById(req.userId);
+        console.log(student)
         if (!student) {
             return res.status(404).json({ msg: "Student not found" });
         }
@@ -39,12 +39,12 @@ const createSession = async (req, res) => {
             studentId: student._id,
             topicName,
             description,
-            startDate,
-            endDate,
+            startDate: new Date(startDate),
+            endDate: new Date(endDate),
             startTime,
             endTime,
-            maxSlots,
-            availableSlots: maxSlots, // Initially, available slots equals max slots
+            maxSlots: Number(maxSlots),
+            availableSlots: Number(maxSlots), // Initially, available slots equals max slots
             meetingLink,
             media
         });
