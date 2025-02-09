@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const UserController = require("../controller/StudentController");
+const { UserRegister, UserLogin, googleAuth } = require("../controller/StudentController");
 
-router.post("/register", UserController.UserRegister);
-router.post("/login", UserController.UserLogin);
+router.post("/register", UserRegister);
+router.post("/login", UserLogin);
+router.post("/auth/google", googleAuth);
 
 module.exports = router;
