@@ -45,7 +45,11 @@ const sessionSchema = new mongoose.Schema({
   media: { 
     type: String, 
     default: null
-  }, // Array of URLs for images or videos that describe the class
+  },
+  topicType:{
+    type:String,
+    required:true
+  } // Array of URLs for images or videos that describe the class
 }, { timestamps: true });
 
 module.exports = mongoose.model("Session", sessionSchema);

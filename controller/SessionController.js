@@ -23,7 +23,8 @@ const createSession = async (req, res) => {
             startTime,
             endTime,
             maxSlots,
-            meetingLink
+            meetingLink,
+            topicType
         } = req.body;
 
         const media = req.file ? req.file.filename : undefined;
@@ -46,12 +47,17 @@ const createSession = async (req, res) => {
             maxSlots: Number(maxSlots),
             availableSlots: Number(maxSlots), // Initially, available slots equals max slots
             meetingLink,
-            media
+            media,
+            topicType
         });
 
         // Save the session document
         const savedSession = await session.save();
         const sessionId = savedSession._id;
+
+        // Update the student's teachingSessions field
+        student.teachingSessions.push(sessionId);
+        await student.save();
 
         return res.status(201).json({
             msg: "Session created successfully",
@@ -65,6 +71,40 @@ const createSession = async (req, res) => {
     }
 };
 
+const getSessions = async (req, res) => {
+    try {
+        const { searchTerm, topicType } = req.query;
+        const query = {};
+
+        if (searchTerm) {
+            query.topicName = { $regex: searchTerm, $options: 'i' }; // Case-insensitive search
+        }
+
+        if (topicType) {
+            query.topicType = topicType;
+        }
+
+        const sessions = await Session.find(query).populate('studentId', 'username profileImage');
+        
+        const sessionsWithProfileImage = sessions.map(session => {
+            const { studentId, ...rest } = session.toObject();
+            return {
+                ...rest,
+                student: {
+                    username: studentId.username,
+                    ...(studentId.profileImage && { profileImage: studentId.profileImage })
+                }
+            };
+        });
+
+        res.status(200).json(sessionsWithProfileImage);
+    } catch (error) {
+        console.error('Error fetching sessions:', error);
+        res.status(500).json({ msg: 'Internal server error' });
+    }
+};
+
 module.exports = { 
-    createSession: [upload.single('media'), createSession]
+    createSession: [upload.single('media'), createSession],
+    getSessions
 };
