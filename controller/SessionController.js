@@ -2,6 +2,8 @@ const Session = require('../model/Session');
 const Student = require('../model/Student');
 const multer = require('multer');
 const path = require('path');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -104,7 +106,92 @@ const getSessions = async (req, res) => {
     }
 };
 
+const enrollStudent = async (req, res) => {
+    try {
+        const sessionId = req.params.sessionId;
+        const studentId = req.userId; // Assuming you have middleware to set req.userId
+        console.log(studentId)
+
+        // Find the session
+        const session = await Session.findById(sessionId);
+        if (!session) {
+            return res.status(404).json({ msg: "Session not found" });
+        }
+
+        // Check if the student is already enrolled
+        if (session.enrolledStudents.includes(studentId)) {
+            return res.status(400).json({ msg: "You are already enrolled in this session" });
+        }
+
+        // Check if there are available slots
+        if (session.availableSlots <= 0) {
+            return res.status(400).json({ msg: "No available slots" });
+        }
+
+        // Enroll the student
+        session.enrolledStudents.push(studentId);
+        session.availableSlots -= 1; // Decrease available slots
+        await session.save();
+
+        // Update the student's enrolledSessions field
+        const student = await Student.findById(studentId);
+        student.enrolledSessions.push(sessionId);
+        await student.save();
+
+        // Send email to the student
+        const transporter = nodemailer.createTransport({
+            service: 'gmail', // Use your email service provider
+            auth: {
+                user: process.env.Email, // Your email
+                pass: process.env.Password // Your email password
+            }
+        });
+        console.log(process.env.Password)
+
+        const mailOptions = {
+            from: process.env.Email,
+            to: student.email, // Assuming the student model has an email field
+            subject: 'Enrollment Confirmation',
+            text: `You have been successfully enrolled in the session "${session.topicName}".\n\n` +
+                  `Start Date: ${session.startDate}\n` +
+                  `End Date: ${session.endDate}\n` +
+                  `Start Time: ${session.startTime}\n` +
+                  `End Time: ${session.endTime}\n` +
+                  `Meeting Link: ${session.meetingLink}\n\n`, // Customize as needed
+            attachments: []
+        };
+
+        // Check if the media is an image and attach it
+        if (session.media) {
+            const filePath = path.join(__dirname, '../uploads', session.media);
+            const fileExtension = path.extname(session.media).toLowerCase();
+            const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+
+            if (imageExtensions.includes(fileExtension)) {
+                mailOptions.attachments.push({
+                    filename: session.media,
+                    path: filePath
+                });
+            }
+        }
+
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error('Error sending email:', error);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        });
+
+        return res.status(200).json({ msg: "Successfully enrolled in the session" });
+    } catch (error) {
+        console.error('Error enrolling student:', error);
+        return res.status(500).json({ msg: "Internal server error" });
+    }
+};
+
 module.exports = { 
     createSession: [upload.single('media'), createSession],
-    getSessions
+    getSessions,
+    enrollStudent,
 };

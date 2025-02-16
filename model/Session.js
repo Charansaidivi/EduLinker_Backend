@@ -49,7 +49,9 @@ const sessionSchema = new mongoose.Schema({
   topicType:{
     type:String,
     required:true
-  } // Array of URLs for images or videos that describe the class
+  },
+  enrolledStudents:[{
+    type: mongoose.Schema.Types.ObjectId
+  }] // Array of URLs for images or videos that describe the class
 }, { timestamps: true });
-
 module.exports = mongoose.model("Session", sessionSchema);

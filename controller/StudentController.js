@@ -10,7 +10,6 @@ const fs = require('fs');
 dotEnv.config();
 const secretKey = process.env.JWT_SECRET;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -115,13 +114,15 @@ const uploadProfileImage = async (req, res) => {
         return res.status(400).json({ message: "No file uploaded" });
     }
 };
-
-// Export the upload middleware and the functions
+const handleBookSlot=()=>{
+    console.log(req.userId);
+}
 module.exports = { 
-    UserRegister, 
-    UserLogin, 
+    UserRegister,
+    UserLogin,
+    handleBookSlot,  
     googleAuth, 
     getProfile,
     uploadProfileImage,
-    upload // Export the upload middleware
+    upload
 };
