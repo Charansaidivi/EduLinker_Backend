@@ -7,6 +7,7 @@ const { OAuth2Client } = require('google-auth-library');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const Session = require("../model/Session");
 dotEnv.config();
 const secretKey = process.env.JWT_SECRET;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -117,12 +118,25 @@ const uploadProfileImage = async (req, res) => {
 const handleBookSlot=()=>{
     console.log(req.userId);
 }
+
+// Add this function to handle fetching session details
+const getSessionDetails = async (req, res) => {
+    const { sessionIds } = req.body; // Get session IDs from the request body
+    try {
+        const sessions = await Session.find({ _id: { $in: sessionIds } }); // Assuming you have a Session model
+        res.status(200).json(sessions); // Send the session details back
+    } catch (error) {
+        console.error("Error fetching session details:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
 module.exports = { 
     UserRegister,
     UserLogin,
     handleBookSlot,  
     googleAuth, 
     getProfile,
+    getSessionDetails,
     uploadProfileImage,
     upload
 };

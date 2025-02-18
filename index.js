@@ -7,7 +7,7 @@ const sessionRoutes= require('./routes/SessionRoutes')
 const path = require('path');
 const { scheduleCleanup } = require('./services/cleanupService');
 const app = express()
-const PORT = process.env.PORT || 4001
+const PORT = process.env.PORT || 4002
 dotEnv.config()
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.json())
