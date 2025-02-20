@@ -190,8 +190,59 @@ const enrollStudent = async (req, res) => {
     }
 };
 
+const sendSessionReminders = async () => {
+    try {
+        const now = new Date();
+        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+
+        console.log(`Checking for sessions starting between ${now} and ${oneHourLater}`);
+
+        const sessions = await Session.find({
+            startDate: { $lte: oneHourLater, $gte: now }
+        }).populate('enrolledStudents', 'email');
+
+        console.log(`Found ${sessions.length} sessions starting within the next hour`);
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.Email,
+                pass: process.env.Password
+            }
+        });
+
+        sessions.forEach(session => {
+            session.enrolledStudents.forEach(student => {
+                const mailOptions = {
+                    from: process.env.Email,
+                    to: student.email,
+                    subject: 'Session Reminder',
+                    text: `Reminder: Your session "${session.topicName}" will start in less than an hour.\n\n` +
+                          `Start Date: ${session.startDate}\n` +
+                          `Start Time: ${session.startTime}\n` +
+                          `Meeting Link: ${session.meetingLink}\n\n`
+                };
+
+                transporter.sendMail(mailOptions, (error, info) => {
+                    if (error) {
+                        console.error('Error sending reminder email:', error);
+                    } else {
+                        console.log('Reminder email sent: ' + info.response);
+                    }
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Error sending session reminders:', error);
+    }
+};
+
+// Schedule the reminder function to run every 5 minutes
+cron.schedule('*/5 * * * *', sendSessionReminders);
+
 module.exports = { 
     createSession: [upload.single('media'), createSession],
     getSessions,
     enrollStudent,
+    sendSessionReminders // Ensure this function is exported
 };
