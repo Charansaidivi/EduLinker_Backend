@@ -7,6 +7,8 @@ const { OAuth2Client } = require('google-auth-library');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const Session = require("../model/Session");
 dotEnv.config();
 const secretKey = process.env.JWT_SECRET;
@@ -130,6 +132,91 @@ const getSessionDetails = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+const requestPasswordReset = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Generate a random token
+        const resetToken = crypto.randomBytes(32).toString("hex");
+        const hashedToken = await bcrypt.hash(resetToken, 10);
+
+        // Save token and expiration to user document
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour from now
+        await user.save();
+
+        // Send email with reset token
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.Email,
+                pass: process.env.Password
+            }
+        });
+
+        const mailOptions = {
+            from: process.env.Email,
+            to: user.email,
+            subject: 'Password Reset Request',
+            text: `You are receiving this email because you requested a password reset.\n\n
+                  Please click on the following link to reset your password (valid for 1 hour):\n\n
+                  http://localhost:5173/reset-password/${resetToken}/${encodeURIComponent(email)}\n\n
+                  If you did not request this, please ignore this email.\n`
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error('Error sending email:', error);
+                return res.status(500).json({ message: "Error sending email" });
+            }
+            console.log('Email sent: ' + info.response);
+            return res.status(200).json({ message: "Password reset email sent" });
+        });
+    } catch (error) {
+        console.error("Error requesting password reset:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    const { token, newPassword, email } = req.body;
+    try {
+        // Find user by email and check if reset token exists and is valid
+        const user = await User.findOne({
+            email: email,
+            resetPasswordToken: { $exists: true },
+            resetPasswordExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: "Invalid or expired reset token" });
+        }
+
+        // Verify token
+        const isTokenValid = await bcrypt.compare(token, user.resetPasswordToken);
+        if (!isTokenValid) {
+            return res.status(400).json({ message: "Invalid reset token" });
+        }
+
+        // Update password and clear reset token fields
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        res.status(200).json({ message: "Password reset successful" });
+    } catch (error) {
+        console.error("Error resetting password:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 module.exports = { 
     UserRegister,
     UserLogin,
@@ -138,5 +225,7 @@ module.exports = {
     getProfile,
     getSessionDetails,
     uploadProfileImage,
-    upload
+    upload,
+    requestPasswordReset, // Export the new function
+    resetPassword // Export the new function
 };

@@ -8,7 +8,7 @@ const path = require('path');
 const { scheduleCleanup } = require('./services/cleanupService');
 const { sendSessionReminders } = require('./controller/SessionController'); // Import the function
 const app = express();
-const PORT = process.env.PORT || 4002;
+const PORT = process.env.PORT || 4004;
 
 dotEnv.config();
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
