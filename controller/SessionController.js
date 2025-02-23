@@ -76,33 +76,59 @@ const createSession = async (req, res) => {
 const getSessions = async (req, res) => {
     try {
         const { searchTerm, topicType } = req.query;
-        const query = {};
+        let query = {};
 
         if (searchTerm) {
-            query.topicName = { $regex: searchTerm, $options: 'i' }; // Case-insensitive search
+            query.$or = [
+                { topicName: { $regex: searchTerm, $options: 'i' } },
+                { description: { $regex: searchTerm, $options: 'i' } },
+                { topicType: { $regex: searchTerm, $options: 'i' } },
+                // Add lookup for instructor's username
+                {
+                    $expr: {
+                        $regexMatch: {
+                            input: { $toString: "$studentId.username" },
+                            regex: searchTerm,
+                            options: "i"
+                        }
+                    }
+                }
+            ];
         }
 
-        if (topicType) {
+        if (topicType && topicType !== '') {
             query.topicType = topicType;
         }
 
-        const sessions = await Session.find(query).populate('studentId', 'username profileImage');
-        
-        const sessionsWithProfileImage = sessions.map(session => {
-            const { studentId, ...rest } = session.toObject();
-            return {
-                ...rest,
-                student: {
-                    username: studentId.username,
-                    ...(studentId.profileImage && { profileImage: studentId.profileImage })
-                }
-            };
-        });
+        // Add filters for valid sessions
+        const currentDate = new Date();
+        query.endDate = { $gte: currentDate };
+        query.availableSlots = { $gt: 0 };
+
+        const sessions = await Session.find(query)
+            .populate({
+                path: 'studentId',
+                select: 'username profileImage'
+            })
+            .sort({ startDate: 1 })
+            .lean();
+
+        const sessionsWithProfileImage = sessions.map(session => ({
+            ...session,
+            student: {
+                username: session.studentId.username,
+                profileImage: session.studentId.profileImage || null
+            },
+            studentId: undefined
+        }));
 
         res.status(200).json(sessionsWithProfileImage);
     } catch (error) {
         console.error('Error fetching sessions:', error);
-        res.status(500).json({ msg: 'Internal server error' });
+        res.status(500).json({ 
+            msg: 'Internal server error', 
+            error: error.message 
+        });
     }
 };
 
